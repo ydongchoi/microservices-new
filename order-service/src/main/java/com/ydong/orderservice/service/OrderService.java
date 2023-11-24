@@ -1,10 +1,12 @@
 package com.ydong.orderservice.service;
 
+import com.ydong.orderservice.dto.InventoryResponse;
 import com.ydong.orderservice.dto.OrderLineItemsDto;
 import com.ydong.orderservice.dto.OrderRequest;
 import com.ydong.orderservice.model.Order;
 import com.ydong.orderservice.model.OrderLineItems;
 import com.ydong.orderservice.repository.OrderRepository;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +32,22 @@ public class OrderService {
 
         order.setOrderLineItemsList(orderLineItems);
 
+        List<String> skuCodes = order.getOrderLineItemsList().stream()
+            .map(OrderLineItems::getSkuCode)
+            .toList();
+
         // Call Inventory Service, and Place order if product is in Stock
-        Boolean result = webClient.get()
-            .uri("http://localhost:8094/api/inventory")
+        InventoryResponse[] inventoryResponsesArray = webClient.get()
+            .uri("http://localhost:8094/api/inventory",
+                uriBuilder -> uriBuilder.queryParam("skuCode",skuCodes).build())
             .retrieve()
-            .bodyToMono(Boolean.class)
+            .bodyToMono(InventoryResponse[].class)
             .block();
 
-        if(result){
+        boolean allProductsInStock = Arrays.stream(inventoryResponsesArray)
+            .allMatch(InventoryResponse::isInStock);
+
+        if(allProductsInStock){
             orderRepository.save(order);
         }else{
             throw new IllegalArgumentException("Product is not in stock, please try again later");
