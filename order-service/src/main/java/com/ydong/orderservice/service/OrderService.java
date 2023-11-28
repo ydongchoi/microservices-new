@@ -3,6 +3,7 @@ package com.ydong.orderservice.service;
 import com.ydong.orderservice.dto.InventoryResponse;
 import com.ydong.orderservice.dto.OrderLineItemsDto;
 import com.ydong.orderservice.dto.OrderRequest;
+import com.ydong.orderservice.event.OrderPlacedEvent;
 import com.ydong.orderservice.model.Order;
 import com.ydong.orderservice.model.OrderLineItems;
 import com.ydong.orderservice.repository.OrderRepository;
@@ -52,7 +53,7 @@ public class OrderService {
 
         if(allProductsInStock){
             orderRepository.save(order);
-            kafkaTemplate.send("notificationTopic", order.getOrderNumber());
+            kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
             return "Order Placed Sucessfully!";
         }else{
             throw new IllegalArgumentException("Product is not in stock, please try again later");
