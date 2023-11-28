@@ -1,4 +1,4 @@
-package com.ydong.notificationservice;
+package com.ydong.notificationservice.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
