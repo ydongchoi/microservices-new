@@ -67,6 +67,19 @@
           </excludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>com.google.cloud.tools</groupId><!-- Please edit the m2/settings.xml and docker/config files for credentials. -->
+        <artifactId>jib-maven-plugin</artifactId>
+        <version>3.2.1</version>
+        <configuration>
+          <from>
+            <image>eclipse-temurin:20-jre</image>
+          </from>
+          <to>
+            <image>registry.hub.docker.com/faint5/${project.artifactId}</image>
+          </to>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
