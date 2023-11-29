@@ -21,9 +21,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${eureka.username}")
+    @Value("${app.eureka.username}")
     private String username;
-    @Value("${eureka.password}")
+    @Value("${app.eureka.password}")
     private String password;
 
     @Bean
