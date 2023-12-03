@@ -1,6 +1,16 @@
----
 version: '3.7'
 services:
+  kafdrop:
+    image: obsidiandynamics/kafdrop:3.28.0
+    restart: "no"
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "broker:29092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - broker
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     container_name: zookeeper
@@ -24,3 +34,153 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
 
+  ## MySQL Docker Compose Config
+  postgres-order:
+    image: postgres
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: order-service
+      POSTGRES_USER: ptechie
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
+    volumes:
+      - ./postgres-order:/data/postgres
+    expose:
+      - "5431"
+    ports:
+      - "5431:5431"
+    command: -p 5431
+    restart: always
+
+  postgres-inventory:
+    image: postgres
+    container_name: postgres-inventory
+    environment:
+      POSTGRES_DB: inventory-service
+      POSTGRES_USER: ptechie
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
+    volumes:
+      - ./postgres-inventory:/data/postgres
+    ports:
+      - "5432:5432"
+    restart: always
+
+  ## Mongo Docker Compose Config
+  mongo:
+    image: mongo:4.4.14-rc0-focal
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    expose:
+      - "27017"
+    volumes:
+      - ./mongo-data:/data/db
+
+  ## Keycloak Config with Mysql database
+  keycloak-mysql:
+    image: mysql:5.7
+    container_name: keycloak-mysql
+    volumes:
+      - ./mysql_keycloak_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:18.0.0
+    container_name: keycloak
+    command: [ "start-dev", "--import-realm" ]
+    environment:
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./realms/:/opt/keycloak/data/import/
+    depends_on:
+      - keycloak-mysql
+
+  ## Eureka Server
+  discovery-server:
+    image: faint5/discovery-server:latest
+    container_name: discovery-server
+    pull_policy: always
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  api-gateway:
+    image: faint5/api-gateway:latest
+    container_name: api-gateway
+    pull_policy: always
+    ports:
+      - "8181:8080"
+    expose:
+      - "8181"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY= TRACE
+    depends_on:
+      - discovery-server
+      - keycloak
+
+  ## Product-Service Docker Compose Config
+  product-service:
+    image: faint5/product-service:latest
+    container_name: product-service
+    pull_policy: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - mongo
+      - discovery-server
+      - api-gateway
+
+  ## Order-Service Docker Compose Config
+  order-service:
+    image: faint5/order-service:latest
+    container_name: order-service
+    pull_policy: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5431/order-service
+    depends_on:
+      - postgres-order
+      - broker
+      - discovery-server
+      - api-gateway
+
+  ## Inventory-Service Docker Compose Config
+  inventory-service:
+    image: faint5/inventory-service:latest
+    container_name: inventory-service
+    pull_policy: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventory-service
+    depends_on:
+      - postgres-inventory
+      - discovery-server
+      - api-gateway
+
+  ## Notification-Service Docker Compose Config
+  notification-service:
+    image: faint5/notification-service:latest
+    container_name: notification-service
+    pull_policy: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - broker
+      - discovery-server
+      - api-gateway
