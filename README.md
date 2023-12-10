@@ -1,7 +1,7 @@
 
 ## microservices-new
 
->[!Info]
+>[!IMPORTANT]  
 > Spring Boot, Spring Security, Spring JPA, Json Web Socket, MySQL, MapStruct
 
 >[!Note]
